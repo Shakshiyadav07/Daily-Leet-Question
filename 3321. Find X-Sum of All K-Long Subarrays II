@@ -1,0 +1,86 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+class Solution {
+public:
+    vector<long long> findXSum(vector<int>& nums, int k, int x) {
+        int n = nums.size();
+        unordered_map<int,int> freq;
+
+        auto cmp = [](const pair<int,int>& a, const pair<int,int>& b){
+            if (a.first != b.first) return a.first > b.first;
+            return a.second > b.second;
+        };
+
+        multiset<pair<int,int>, decltype(cmp)> top(cmp), rest(cmp);
+        long long sumTop = 0;
+        vector<long long> ans;
+
+        // Insert element into data structure
+        auto insertElem = [&](int val) {
+            int f = freq[val];
+            pair<int,int> elem = {f, val};
+            rest.insert(elem);
+
+            if ((int)top.size() < x) {
+                auto it = rest.begin();
+                sumTop += 1LL * it->first * it->second;
+                top.insert(*it);
+                rest.erase(it);
+            } else if (!top.empty()) {
+                auto worst = prev(top.end());
+                auto best = rest.begin();
+                if (cmp(*best, *worst)) {
+                    sumTop -= 1LL * worst->first * worst->second;
+                    sumTop += 1LL * best->first * best->second;
+                    top.insert(*best);
+                    rest.insert(*worst);
+                    top.erase(worst);
+                    rest.erase(best);
+                }
+            }
+        };
+
+        // Erase element from data structure
+        auto eraseElem = [&](int val, int oldFreq) {
+            pair<int,int> elem = {oldFreq, val};
+            auto itTop = top.find(elem);
+            if (itTop != top.end()) {
+                sumTop -= 1LL * itTop->first * itTop->second;
+                top.erase(itTop);
+            } else {
+                auto itRest = rest.find(elem);
+                if (itRest != rest.end()) rest.erase(itRest);
+            }
+
+            if ((int)top.size() < x && !rest.empty()) {
+                auto it = rest.begin();
+                sumTop += 1LL * it->first * it->second;
+                top.insert(*it);
+                rest.erase(it);
+            }
+        };
+
+        // Update frequency and rebalance sets
+        auto update = [&](int val, int delta) {
+            int oldFreq = freq[val];
+            if (oldFreq > 0) eraseElem(val, oldFreq);
+            freq[val] += delta;
+            if (freq[val] > 0) insertElem(val);
+            else freq.erase(val);
+        };
+
+        // Build first window
+        for (int i = 0; i < k; i++) update(nums[i], +1);
+        ans.push_back(sumTop);
+
+        // Slide the window
+        for (int i = k; i < n; i++) {
+            update(nums[i - k], -1);
+            update(nums[i], +1);
+            ans.push_back(sumTop);
+        }
+
+        return ans;
+    }
+};
